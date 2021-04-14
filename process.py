@@ -24,7 +24,6 @@ def wiener_increment(dt: float, size: int = 1, is_complex: bool = False) -> np.n
         return np.random.normal(0, np.sqrt(dt), size) + np.random.normal(0, np.sqrt(dt), size) * 1j
 
 
-
 def wiener(T: float, dt: float, size: int = 1) -> Tuple[np.ndarray, np.ndarray]:
     """Sample the standard Wiener process.
 
@@ -48,11 +47,9 @@ def wiener(T: float, dt: float, size: int = 1) -> Tuple[np.ndarray, np.ndarray]:
     return t, samples
 
 
-def ornstein_uhlenbeck(T: float, dt: float,
-                       x_0: Union[float, np.ndarray] = None, gamma: float = 1.0,
-                       sigma: float = 0.3, size: int = 1, is_complex = False) -> Tuple[
-                       np.ndarray, np.ndarray]:
-    """Sample the real Ornstein-Uhlenbeck process.
+def ornstein_uhlenbeck(T: float, dt: float, x_0: Union[float, np.ndarray] = None, gamma: Union[float, complex] = 1.0,
+                       sigma: float = 0.3, size: int = 1, is_complex=False) -> Tuple[np.ndarray, np.ndarray]:
+    """Sample the Ornstein-Uhlenbeck process.
 
     It follows the SDE dX(t) = -gamma*X(t)*dt + sigma*dW(t)
     :param T: Duration of the sample function(s)
@@ -86,7 +83,7 @@ def ornstein_uhlenbeck(T: float, dt: float,
         else:
             realpart = np.random.normal(0, sigma / (2 * gamma.real) ** 0.5, size)
             imagpart = np.random.normal(0, sigma / (2 * gamma.real) ** 0.5, size)
-            x = realpart + imagpart*1j
+            x = realpart + imagpart * 1j
     else:
         x_0 = np.asarray(x_0)
         if x_0.shape == ():  # if x_0 is simply a number

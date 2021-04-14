@@ -5,7 +5,7 @@ import numpy as np
 def autocorrelation(realisations: np.ndarray) -> np.ndarray:
     """Calculate the (empirical) autocorrelation function of a process.
 
-     Autocorrelation function is defined as R(s,t) = Mean[X(s),X^*(t)]
+     Autocorrelation function is defined as R(s,t) = Mean[X(s)X^*(t)]
     :param realisations: a np.ndarray of shape (#realisations, #time points)
     :return: a (N, N) np.ndarray where the [i,j] entry is the correlation of
     the ith and jth entry in the sample functions.
