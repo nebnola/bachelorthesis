@@ -3,17 +3,26 @@ from typing import Tuple, Union
 import numpy as np
 
 
-def wiener_increment(dt: float, size: int = 1) -> np.ndarray:
+def wiener_increment(dt: float, size: int = 1, is_complex: bool = False) -> np.ndarray:
     """Return increments dW of a standard Wiener process.
 
     It's just a normal distribution with standard deviation sqrt(dt). If size
     is given, return the corresponding number of independent increments
-    (useful for simulating many processes at once)
+    (useful for simulating many processes at once). If complex is True, return
+    the increment of the complex Wiener process, defined as two independent
+    Wiener process in the real and imaginary part.
     :param dt: time increment dt
     :param size: number of desired increments
+    :param is_complex: specify if increment should be of the complex or real
+    Wiener
+    process
     :return: corresponding increment(s) of a Wiener process sample function
     """
-    return np.random.normal(0, np.sqrt(dt), size)
+    if not is_complex:
+        return np.random.normal(0, np.sqrt(dt), size)
+    else:
+        return np.random.normal(0, np.sqrt(dt), size) + np.random.normal(0, np.sqrt(dt), size) * 1j
+
 
 
 def wiener(T: float, dt: float, size: int = 1) -> Tuple[np.ndarray, np.ndarray]:
@@ -41,7 +50,7 @@ def wiener(T: float, dt: float, size: int = 1) -> Tuple[np.ndarray, np.ndarray]:
 
 def ornstein_uhlenbeck(T: float, dt: float,
                        x_0: Union[float, np.ndarray] = None, gamma: float = 1.0,
-                       sigma: float = 0.3, size: int = 1) -> Tuple[
+                       sigma: float = 0.3, size: int = 1, is_complex = False) -> Tuple[
                        np.ndarray, np.ndarray]:
     """Sample the real Ornstein-Uhlenbeck process.
 
@@ -55,6 +64,8 @@ def ornstein_uhlenbeck(T: float, dt: float,
     :param gamma: "stiffness" of the process
     :param sigma: "randomness" of the process
     :param size: number of sample functions to be generated
+    :param is_complex: specify if complex Ornstein-Uhlenbeck process is meant.
+    In that case, gamma can be a complex number.
     :return: Tuple (t, sample) where t is a np.ndarray of time points and
     sample are the sample functions. sample is of shape (size, int(T/dt)+1),
     so axis 0 corresponds to the different samples and axis 1 to time.
@@ -62,12 +73,20 @@ def ornstein_uhlenbeck(T: float, dt: float,
     N = int(T / dt) + 1  # number of time steps
     real_dt = T / (N - 1)
     t = np.linspace(0, T, N)  # time points
-    samples = np.empty((size, N))  # result will go here
+    if not is_complex:
+        samples = np.empty((size, N))  # result will go here
+    else:
+        samples = np.empty((size, N), dtype=complex)
 
     # initialise process
     if x_0 is None:  # standard behaviour is to sample from stationary
         # distribution
-        x = np.random.normal(0, sigma / (2 * gamma) ** 0.5, size)
+        if not is_complex:
+            x = np.random.normal(0, sigma / (2 * gamma) ** 0.5, size)
+        else:
+            realpart = np.random.normal(0, sigma / (2 * gamma.real) ** 0.5, size)
+            imagpart = np.random.normal(0, sigma / (2 * gamma.real) ** 0.5, size)
+            x = realpart + imagpart*1j
     else:
         x_0 = np.asarray(x_0)
         if x_0.shape == ():  # if x_0 is simply a number
@@ -78,6 +97,6 @@ def ornstein_uhlenbeck(T: float, dt: float,
 
     for i in range(N):
         samples[:, i] = x  # write into result array
-        w = sigma * wiener_increment(real_dt, size)
+        w = sigma * wiener_increment(real_dt, size, is_complex)
         x = x - gamma * x * real_dt + w
     return t, samples
