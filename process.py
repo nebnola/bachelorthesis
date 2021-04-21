@@ -1,5 +1,6 @@
 """Implementations of statistical processes"""
 from typing import Tuple, Union
+from numbers import Complex, Real
 import numpy as np
 
 
@@ -47,9 +48,10 @@ def wiener(T: float, dt: float, size: int = 1) -> Tuple[np.ndarray, np.ndarray]:
     return t, samples
 
 
-def ornstein_uhlenbeck(T: float, dt: float, x_0: Union[float, np.ndarray] = None, gamma: Union[float, complex] = 1.0,
-                       sigma: float = 0.3, size: int = 1, is_complex=False) -> Tuple[np.ndarray, np.ndarray]:
-    """Sample the Ornstein-Uhlenbeck process.
+def ornstein_uhlenbeck_naive(T: float, dt: float, x_0: Union[float, np.ndarray] = None,
+                             gamma: Union[float, complex] = 1.0,
+                             sigma: float = 0.3, size: int = 1, is_complex=False) -> Tuple[np.ndarray, np.ndarray]:
+    """Sample the Ornstein-Uhlenbeck process. Naive implementation, not exact but works for very small dt.
 
     It follows the SDE dX(t) = -gamma*X(t)*dt + sigma*dW(t)
     :param T: Duration of the sample function(s)
@@ -96,4 +98,60 @@ def ornstein_uhlenbeck(T: float, dt: float, x_0: Union[float, np.ndarray] = None
         samples[:, i] = x  # write into result array
         w = sigma * wiener_increment(real_dt, size, is_complex)
         x = x - gamma * x * real_dt + w
+    return t, samples
+
+
+def ornstein_uhlenbeck(T: Real, dt: Real, theta: Complex, sigma: Real, size: int = 1,
+                       x_0: Union[Complex, np.ndarray] = None,
+                       is_complex: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+    """Sample the real or complex Ornstein-Uhlenbeck process
+
+    It follows the SDE dX(t) = -theta*X(t)*dt + sigma*dW(t)
+    :param T: Duration of the sample function(s)
+    :param dt: Desired step size. Is not accurate but the real step size is such that it fits evenly into T.
+    :param theta: "stiffness" of the process
+    :param sigma: "noisiness" of the process
+    :param size: number of independent sample functions to be generated
+    :param x_0: The starting point X(0) of the process. Can be a number or a np.ndarray (in which case it must be of
+    length size) By default, sampled independently according to the stationary distribution.
+    :param is_complex: specify if Ornstein-Uhlenbeck process should be complex. In that case, theta can be a complex
+    number.
+    :return: Tuple (t, sample) where t is a np.ndarray of time points and sample are the sample functions. sample is
+    of shape (size, int(T/dt)+1), so axis 0 corresponds to the different samples and axis 1 to time.
+    """
+
+    N = int(T / dt) + 1  # number of time steps
+    real_dt = T / (N - 1)
+    t = np.linspace(0, T, N)  # time points
+    if not is_complex:
+        samples = np.empty((size, N))  # result will go here
+    else:
+        samples = np.empty((size, N), dtype=complex)
+
+    if x_0 is None:  # standard behaviour is to sample from stationary distribution
+        if not is_complex:
+            x = np.random.normal(0, sigma / (2 * theta) ** 0.5, size)
+        else:
+            realpart = np.random.normal(0, sigma / (2 * theta.real) ** 0.5, size)
+            imagpart = np.random.normal(0, sigma / (2 * theta.real) ** 0.5, size)
+            x = realpart + imagpart * 1j
+    else:
+        x_0 = np.asarray(x_0)
+        if x_0.shape == ():  # if x_0 is simply a number
+            x_0 = np.full(size, x_0)
+        elif x_0.shape != (size,):
+            raise ValueError("Shape of x_0 incompatible with selected size")
+        x = x_0
+
+    # let's only compute this once:
+    factor = sigma * np.sqrt((1 - np.exp(-2 * theta.real * real_dt)) / (2 * theta.real))
+
+    for i in range(N):
+        samples[:, i] = x  # write into result array
+        if is_complex:
+            noise = factor * (np.random.normal(0, 1, size) + 1j * np.random.normal(0, 1, size))
+        else:
+            noise = factor * np.random.normal(0, 1, size)
+        x = np.exp(-theta * real_dt) * x + noise
+
     return t, samples
