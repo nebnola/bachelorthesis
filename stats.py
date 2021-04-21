@@ -19,3 +19,17 @@ def autocorrelation(realisations: np.ndarray) -> np.ndarray:
             result[s, t] = rst
             result[t, s] = np.conj(rst)
     return result
+
+
+def single_autocorrelation(realisations: np.ndarray, index: int) -> np.ndarray:
+    """Calculate the autocorrelation function of a process with one index fixed.
+
+    Calculates Mean[X^*(index)X(j)] for all j but fixed index
+    """
+    N = realisations.shape[1]  # number of time points
+    result = np.empty(N, dtype=complex)
+    # all the values of the process at the given index (conjugated):
+    index_samples = np.conj(realisations[:, index])
+    for j in range(N):
+        result[j] = np.mean(index_samples * realisations[:, j])
+    return result
