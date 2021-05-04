@@ -155,3 +155,57 @@ def ornstein_uhlenbeck(T: Real, dt: Real, theta: Complex, sigma: Real, size: int
         x = np.exp(-theta * real_dt) * x + noise
 
     return t, samples
+
+
+def multivariate_ou_naive(T: Real, dt: Real, dim: int, lambd: np.ndarray, B: np.ndarray, size: int = 1) -> Tuple[
+                          np.ndarray, np.ndarray]:
+    """
+    Multivariate complex Ornstein-Uhlenbeck process with diagonal matrix A, naive implementation
+
+    The multivariate Ornstein-Uhlenbeck process follows the stochastic differential vector equation
+    dX(t) = -A*X(t)dt + B*dW(t),
+    where W(t) is the complex dim-dimensional Wiener process, and A and B are (dim x dim) matrices. The entries of W(
+    t) are realised with independent real and imaginary parts scaled by 1/sqrt(2), so that its
+    autocorrelation function is Mean(W^*(s) W(t)) = min(s,t)
+    :param T: Duration of the sample function(s)
+    :param dt: Desired step size. Is not accurate but the real step size is such that it fits evenly into T.
+    :param dim: Dimensionality of the process
+    :param lambd: array of length dim such that A = diag(lambd[0], ..., lambd[dim-1]). Entries should only have positive
+    real parts, although this is not checked
+    :param B: Matrix B of the differential equation
+    :param size: Number of independent samples to be drawn.
+    :return: Tuple (t, samples)
+    t is an array of time points.
+    samples is the array of samples of shape (size, int(T/dt) + 1, dim)
+    Axis 0 represents the different samples, axis 1 represents the different time points and axis 2 corresponds to the
+    entries of the vector
+    """
+    # matrix A
+    A = np.diag(lambd)
+
+    N = int(T / dt) + 1  # number of time steps
+    real_dt = T / (N - 1)
+    t = np.linspace(0, T, N)  # time points
+
+    # results array: 0th axis: different samples, 1st axis: time, 2nd axis: dim-dimensional vector
+    samples = np.empty((size, N, dim), dtype=complex)
+
+    # covariance matrix of stationary distribution:
+    cov = B @ B.transpose().conj() / (np.tile(lambd, (dim, 1)).transpose() + np.tile(lambd.conj(), (dim, 1)))
+    # if Z=X+iY is stationary dist. then these are the covariances of X and Y:
+    xx = yy = cov.real / 2
+    xy = - cov.imag / 2
+    yx = cov.imag / 2
+    realcov = np.block([[xx, xy], [yx, yy]])
+
+    # sample initial value:
+    realimag = np.random.multivariate_normal(np.zeros(2 * dim), realcov, size)
+    x = realimag[:, :dim] + 1j * realimag[:, dim:]
+    x = np.expand_dims(x, axis=2)  # necessary so that simultaneous matrix multiplication of vectors works.
+    for i in range(N):
+        samples[:, i, :] = np.squeeze(x)
+        noise = np.sqrt(real_dt / 2) * (np.random.normal(0, 1, (size, dim)) + 1j * np.random.normal(0, 1, (size, dim)))
+        x = x - A @ x * real_dt + B @ np.expand_dims(noise, axis=2)
+
+    return t, samples
+
