@@ -1,5 +1,5 @@
 """Implementations of statistical processes"""
-from typing import Tuple, Union
+from typing import Tuple, Union, Iterable
 from numbers import Complex, Real
 import numpy as np
 
@@ -209,3 +209,31 @@ def multivariate_ou_naive(T: Real, dt: Real, dim: int, lambd: np.ndarray, B: np.
 
     return t, samples
 
+
+def general_ou_coeff(lambdas: Iterable[Complex], b: np.ndarray) -> np.ndarray:
+    """Calculate coefficients c_j of the autocorrelation function of a 'generalised' O-U-process
+
+    The generalised O-U-process is defined as the sum of all elements of the multivariate O-U-process which follows the
+    SDE: dX(t) = -A*X(t)dt + B*dW(t)
+    where A = diag(lambdas)
+    If c is the output vector, then the autocorrelation function is sum_j c_j e^(-lambdas_j * (t-s)) for t>=s
+    :param lambdas: A 1D array containing the diagonal elements of A
+    :param b: A 2D array for the matrix B. Has to be of shape (len(lambdas), len(lambdas))
+    :return: A np.ndarray the same dimension as lambdas containing the coefficients
+    """
+    lcol, lrow = np.meshgrid(lambdas, lambdas)
+    return np.sum((b.conj() @ b.T) / (lrow.conj() + lcol), axis=0)
+
+
+def general_ou_autoc(lambdas: Iterable[Complex], b: np.ndarray, t: Iterable[Real]) -> np.array:
+    """Return analytical autocorrelation function of the generalised O-U process
+
+    :param lambdas: A 1D array containing the diagonal elements of A
+    :param b: A 2D array for the matrix B. Has to be of shape (len(lambdas), len(lambdas))
+    :param t: array of time points at which autocorrelation function should be evaluated
+    :return: A complex array the same shape as t containing the autocorrelation function at the given time points
+    """
+    coeffs = general_ou_coeff(lambdas, b)
+    coeffsv, tv = np.meshgrid(coeffs, t)
+    lambdasv, tv = np.meshgrid(lambdas, t)
+    return np.sum(coeffsv * np.exp(-lambdasv * tv), axis=1)
