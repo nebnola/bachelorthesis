@@ -33,20 +33,29 @@ class TestMatricesFromParams(unittest.TestCase):
         b_entries = np.array([2-1j, -1.5+2j, -1-1j, 4, 2+1.5j, 1.5-0.5j])
         expected_b = np.array([[2-1j, -1.5+2j, -1-1j],[0,4,2+1.5j],[0,0,1.5-0.5j]])
         param = np.concatenate((expected_lambdas.real , b_entries.real , expected_lambdas.imag , b_entries.imag))
-        lambdas, b = fit.matrices_from_params(param, 3)
+        lambdas, b = fit.FitOU.matrices_from_params(param)
         self.assertEqual(lambdas.tolist() , expected_lambdas.tolist())
         self.assertEqual(expected_b.tolist(), b.tolist())
 
     def test_raise_value_error(self):
         param = list(range(6))
-        self.assertRaises(ValueError, fit.matrices_from_params, param, 3)
+        self.assertRaises(ValueError, fit.FitOU.matrices_from_params, param)
+
+    def test_inverse(self):
+        lambd = np.arange(3) - 1j
+        b = np.array([[1-4j, 0.5+1j, 3],[0, 7-1j, 2-1j],[0,0,0+1j]])
+        lambd2, b2 = fit.FitOU.matrices_from_params(fit.FitOU.params_from_matrices(lambd, b))
+        self.assertEqual(lambd.tolist(), lambd2.tolist())
+        self.assertEqual(b.tolist(), b2.tolist())
+
+
 
 
 class TestResiduals(unittest.TestCase):
-    def test_dimensions(self):
+    def _test_dimensions(self):
         lambdas = np.array([1 + 1j, 2 - 1j, 3])
         b_entries = np.array([2 - 1j, -1.5 + 2j, -1 - 1j, 4, 2 + 1.5j, 1.5 - 0.5j])
         param = np.concatenate((lambdas.real, b_entries.real, lambdas.imag, b_entries.imag))
         t = np.linspace(0,1,20)
-        res = fit.residuals_ou(param, fit.example_autocorrelation, t, 3)
+        res = fit.FitOU.residuals(param, fit.ohm, t, 3)
         self.assertEqual(res.shape, (20,))
